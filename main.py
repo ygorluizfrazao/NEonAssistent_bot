@@ -10,14 +10,15 @@ TOKEN = constants.API_KEY
 
 bot = telebot.TeleBot(TOKEN, parse_mode=None)
 
-menu_command_dict = {"Enquetes": "/enquetes",
-                     "Programação": "/programacao",
-                     "Criação de conteúdo": "/conteudo",
-                     "Informações do evento": "/informacoes",
-                     }
+menu_command_dict = {
+    "Programação": "/programacao",
+    "Criação de conteúdo": "/conteudo",
+    "Informações do evento": "/informacoes",
+}
 
 menu_apps_dict = {
-    "Ingressos": "https://t.me/NEonAssistent_bot/neon_ingressos"
+    "Ingressos": "https://t.me/NEonAssistent_bot/neon_ingressos",
+    "Enquetes": "https://t.me/NEonAssistent_bot/enquetes"
 }
 
 
@@ -34,18 +35,25 @@ def menu_markups():
                                               web_app=WebAppInfo(url=value)))
     return markup
 
+
+@bot.message_handler(commands=['menu'])
 def send_menu(chat_id):
     bot.send_message(chat_id=chat_id,
                      text="Menu de opções",
                      reply_markup=menu_markups())
 
+
 @bot.message_handler(commands=['start', 'iniciar', 'help'])
 def send_welcome(message):
-    print(message)
     bot.reply_to(message, "Olá, sou o seu assistente do NordesteON, aqui estão as ações que posso executar:\n\n\n")
     send_menu(chat_id=message.chat.id)
-    # bot.reply_to(message, "Olá, sou o seu assistente do NordesteON, aqui estão as ações que posso executar:\n\n\n"
-    # + send_menu())
+
+
+@bot.message_handler(commands=['enquetes'])
+def open_app_by_command(message):
+    bot.send_message(chat_id=message.chat.id,
+                     text=menu_apps_dict[message.text.replace('/', '').capitalize()])
+
 
 def print_hi(name):
     print(f'Hi, {name}')
