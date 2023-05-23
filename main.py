@@ -11,14 +11,14 @@ TOKEN = constants.API_KEY
 bot = telebot.TeleBot(TOKEN, parse_mode=None)
 
 menu_command_dict = {
-    "Programação": "/programacao",
-    "Criação de conteúdo": "/conteudo",
-    "Informações do evento": "/informacoes",
+    "Programação 📅": "/programacao",
+    "Criação de conteúdo 📦": "/conteudo",
+    "Informações do evento ℹ️": "/informacoes",
 }
 
 menu_apps_dict = {
-    "Ingressos": "https://t.me/NEonAssistent_bot/neon_ingressos",
-    "Enquetes": "https://t.me/NEonAssistent_bot/enquetes"
+    "Ingressos 🎫": "https://t.me/NEonAssistent_bot/neon_ingressos",
+    "Enquetes ☑️": "https://t.me/NEonAssistent_bot/enquetes"
 }
 
 
@@ -39,7 +39,7 @@ def menu_markups():
 @bot.message_handler(commands=['menu'])
 def send_menu(chat_id):
     bot.send_message(chat_id=chat_id,
-                     text="Menu de opções",
+                     text="Menu de opções 🛎️",
                      reply_markup=menu_markups())
 
 
