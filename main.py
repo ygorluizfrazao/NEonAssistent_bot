@@ -48,7 +48,7 @@ def menu_markups():
 
 def send_menu(chat_id):
     bot.send_message(chat_id=chat_id,
-                     text="Menu de opções      🛎️",
+                     text="Veja o que podemos fazer por você:",
                      reply_markup=menu_markups())
 
 
@@ -60,8 +60,8 @@ def menu(message):
 @bot.message_handler(commands=['start', 'iniciar', 'help'])
 def send_welcome(message):
     bot.send_message(message.chat.id,
-                     "Oiii " + message.from_user.first_name + ", o NordesteON é o bicho!!!\n"
-                                                              "Se quiser, posso te ajudar com algumas coisas\n")
+                     "Olá " + message.from_user.first_name + ", estou aqui para te ajudar com sua imersão no NEon "
+                                                             "2023. Vamos lá?")
     send_menu(chat_id=message.chat.id)
 
 
@@ -90,12 +90,12 @@ def process_photo_message(message, file_path=None):
         file_path = bot.get_file(message.photo[-1].file_id).file_path
 
     try:
-        bot.reply_to(message, "Uau, que massa! Peraí. estou fazendo uns ajustes bem legais para você! 🕒🕒🕒")
+        bot.reply_to(message, "Aguarde alguns segundos, estou fazendo algo incrível para você.")
         img_with_overlay = BotImages.img_overlay(
             'https://api.telegram.org/file/bot{0}/{1}'.format(TOKEN, file_path))
         bot.send_photo(chat_id=message.chat.id, reply_to_message_id=message, photo=img_with_overlay,
-                       caption="Aqui está, você no NordesteON!")
-        bot.send_message(message.chat.id, "Espero que tenha gostado! 🤗🤗🤗🤗")
+                       caption="Aqui está você no NordesteON!")
+        bot.send_message(message.chat.id, "Compartilhe em suas redes sociais.")
     except BotImages.ImageUnreachable:
         bot.reply_to(message, "Desculpe, não consegui processar a imagem, tente novamente mais tarde.")
     finally:
@@ -105,7 +105,23 @@ def process_photo_message(message, file_path=None):
 @bot.message_handler(commands=['conteudo'])
 def handle_conteudo_option(message):
     user_menu_state[message.from_user.id] = MENU_CONTEUDO
-    bot.send_message(message.chat.id, "Me manda uma foto tua aí rapaz. ")
+    bot.send_message(message.chat.id,
+                     "Gostaria de uma foto personalizada com uma moldura exclusiva do NEon? Envie uma foto.")
+
+
+@bot.message_handler(commands=['informacoes'])
+def handle_informacoes(message):
+    user_menu_state[message.from_user.id] = MENU_INFORMACOES
+    bot.send_message(message.chat.id,
+                     "Não perca o *NEon 2023* em *São Luís*!\n"
+                     "Dias *01* e *02* de junho no Multicenter Sebrae.",
+                     parse_mode="MARKDOWN")
+    bot.send_message(chat_id=message.chat.id,
+                     text="https://t.me/NEonAssistent_bot/info")
+    bot.send_message(message.chat.id,
+                     "Siga o *mapa*.",
+                     parse_mode="MARKDOWN")
+    bot.send_location(chat_id=message.chat.id, latitude=-2.5031943, longitude=-44.2675632)
 
 
 @bot.message_handler(content_types=['photo'])
@@ -118,7 +134,7 @@ def photo(message):
         markup.add(types.InlineKeyboardButton("Sim", callback_data="['value', 'PS', 'PS']"))
         markup.add(types.InlineKeyboardButton("Não", callback_data="['value', 'PN', 'PN']"))
         bot.send_message(chat_id=message.chat.id,
-                         text="Você quer que eu coloque uma moldura bem legal nesta foto?",
+                         text="Gostaria de uma foto personalizada com uma moldura exclusiva do NEon?",
                          reply_to_message_id=message,
                          reply_markup=markup)
 
@@ -136,8 +152,7 @@ def handle_query(call):
             return
         if key_from_callback == 'PN':
             user_menu_state[call.from_user.id] = ""
-            bot.send_message(call.message.chat.id, "Tudo bem, quando quiser colocar uma moldura bem legal na sua "
-                                                   "foto, digite /conteudo.")
+            bot.send_message(call.message.chat.id, "Tudo bem, quando quiser utilizar este recurso, digite /conteudo.")
             if call.message.from_user.id in waiting_photo_response:
                 waiting_photo_response.pop(call.from_user.id)
 
@@ -154,6 +169,9 @@ def handle_query(call):
                 case "/conteudo":
                     call.message.from_user.id = call.from_user.id
                     handle_conteudo_option(call.message)
+                case "/informacoes":
+                    call.message.from_user.id = call.from_user.id
+                    handle_informacoes(call.message)
 
 
 @bot.message_handler(func=lambda m: True)
