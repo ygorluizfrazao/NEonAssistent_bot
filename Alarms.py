@@ -36,7 +36,7 @@ def run_continuously(interval=1):
 def background_job():
     # print("Running at " + str(datetime.datetime.now()))
     remove_tags = set()
-    for tag in list(tasks):
+    for tag in tasks:
         after_time, callback = tasks[tag]
         if datetime.datetime.now() > after_time:
             remove_tags.add(tag)
@@ -47,5 +47,10 @@ def background_job():
             tasks.pop(remove_tag)
 
 
-schedule.every().second.do(background_job)
-stop_run_continuously = run_continuously()
+def start():
+    schedule.every(1).seconds.do(background_job)
+    run_continuously()
+
+
+def stop():
+    run_continuously().set()

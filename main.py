@@ -10,6 +10,8 @@ import BotImages
 import Constants
 import Palestras
 import Utils
+import pickle
+import pprint
 
 TOKEN = Constants.API_KEY
 
@@ -35,6 +37,41 @@ menu_apps_dict = {
 user_menu_state = {}
 waiting_photo_response = {}
 alarms = {}
+
+
+def load_alarms():
+    try:
+        with open(Constants.ALARMS_FILE, 'rb') as alarms_file:
+            saved_alarms = pickle.load(alarms_file)
+    except EOFError or FileNotFoundError:
+        with open(Constants.ALARMS_FILE, 'wb') as alarms_file:
+            saved_alarms = {}
+            pickle.dump(alarms, alarms_file, protocol=pickle.HIGHEST_PROTOCOL)
+    for user_id in saved_alarms:
+        user_alarms = saved_alarms[user_id]
+        for tpl in user_alarms:
+            tag, alarmtime, palestra_tpl, chat_id = tpl
+
+            def callback(_chat_id, palestra):
+                time_in_minutes = Utils.dhms_to_minutes(
+                    *Utils.convert_timedelta(
+                        palestra.date_time - datetime.datetime.now())
+                ).__str__()
+                text = "Olá, a palestra *" + palestra.headline + "* começará em *" + time_in_minutes + " minutos*, no " \
+                                                                                                       "auditório *" \
+                       + palestra.local + "*."
+                bot.send_message(chat_id=_chat_id, text=text, parse_mode="MARKDOWN")
+
+            define_alarm(user_id, alarmtime, palestra_tpl, chat_id, save_to_file=False,
+                         callback=callback)
+
+    save_alarms_to_file()
+
+
+def save_alarms_to_file():
+    pprint.pprint(alarms)
+    with open(Constants.ALARMS_FILE, 'wb') as outfile:
+        pickle.dump(alarms, outfile, protocol=pickle.HIGHEST_PROTOCOL)
 
 
 def menu_markups():
@@ -72,7 +109,6 @@ def send_welcome(message):
 
 @bot.message_handler(commands=['enquetes', 'ingressos'])
 def open_app_by_command(message):
-    print(message.text)
     if message.text == '/enquetes':
         user_menu_state[message.from_user.id] = MENU_ENQUETES
         bot.send_message(chat_id=message.chat.id,
@@ -84,13 +120,10 @@ def open_app_by_command(message):
 
 
 def print_hi(name):
-    print(f'Hi, {name}')
+    print(f'Started from {name}')
 
 
 def process_photo_message(message, file_path=None):
-    # print('message.photo =', message.photo)
-    # file_id = message.photo[-1].file_id
-    # print('fileID =', file_id)
     if file_path is None:
         file_path = bot.get_file(message.photo[-1].file_id).file_path
 
@@ -134,10 +167,10 @@ def handle_palestras(message):
     user_menu_state[message.from_user.id] = MENU_PALESTRAS
     for key in Palestras.palestras.keys():
         for idx, palestra in enumerate(Palestras.palestras[key]):
-            existing_alarm = return_tuple_if_alarm_exists(message.from_user.id, palestra)
+            existing_alarm = return_first_tuple_if_alarm_exists(message.from_user.id, palestra)
             if existing_alarm is None:
                 markup = types.InlineKeyboardMarkup()
-                markup.add(types.InlineKeyboardButton("Definir Lembrete",
+                markup.add(types.InlineKeyboardButton("Definir Lembrete ⏰",
                                                       callback_data="['value', '" + str(idx) + "', '1" + key + "']"))
                 bot.send_message(chat_id=message.chat.id,
                                  text=palestra,
@@ -145,7 +178,7 @@ def handle_palestras(message):
                                  parse_mode="MARKDOWN")
             else:
                 markup = types.InlineKeyboardMarkup()
-                markup.add(types.InlineKeyboardButton("Cancelar Lembrete",
+                markup.add(types.InlineKeyboardButton("Cancelar Lembrete 🔕",
                                                       callback_data="['value', '" + str(idx) + "', '0" + key + "']"))
                 bot.send_message(chat_id=message.chat.id,
                                  text=palestra,
@@ -168,36 +201,42 @@ def photo(message):
                          reply_markup=markup)
 
 
-def define_alarm(user_id, alarmtime, palestra, callback):
+def define_alarm(user_id, alarmtime, palestra, chat_id, callback, save_to_file=True):
     def new_callback():
-        callback()
+        callback(chat_id,palestra)
         remove_alarm(user_id, palestra, remover_from_scheduler=False)
 
     tag = Alarms.run_at(alarmtime, new_callback)
     if user_id in alarms:
         current_alarms = alarms[user_id]
-        current_alarms.append((tag, alarmtime, palestra, new_callback))
+        current_alarms.append((tag, alarmtime, palestra, chat_id))
+        alarms[user_id] = current_alarms
     else:
-        alarms[user_id] = [(tag, alarmtime, palestra, new_callback)]
+        alarms[user_id] = [(tag, alarmtime, palestra, chat_id)]
+    if save_to_file:
+        save_alarms_to_file()
 
 
-def return_tuple_if_alarm_exists(user_id, palestra):
+def return_first_tuple_if_alarm_exists(user_id, palestra):
     if user_id in alarms:
         current_alarms = alarms[user_id]
         for tpl in current_alarms:
-            tag, alarmtime, palestra_tpl, callback = tpl
-            if palestra == palestra_tpl:
+            tag, alarmtime, palestra_tpl, chat_id = tpl
+            if palestra.local == palestra_tpl.local and palestra_tpl.date_time_text == palestra.date_time_text:
                 return tpl
     return None
 
 
 def remove_alarm(user_id, palestra, remover_from_scheduler=True):
-    to_remove = return_tuple_if_alarm_exists(user_id, palestra)
-    if to_remove is not None:
-        tag, alarmtime, palestra_tpl, callback = to_remove
+    while (to_remove := return_first_tuple_if_alarm_exists(user_id, palestra)) is not None:
+        tag, alarmtime, palestra_tpl, chat_id = to_remove
         if remover_from_scheduler:
             Alarms.remove_schedule(tag)
         alarms[user_id].remove(to_remove)
+        if not alarms[user_id]:
+            alarms.pop(user_id)
+
+    save_alarms_to_file()
 
 
 @bot.callback_query_handler(func=lambda call: True)
@@ -222,20 +261,33 @@ def handle_query(call):
         if key_from_callback[1:] in Palestras.palestras:
             first_char = key_from_callback[0:1]
             palestra = Palestras.palestras[key_from_callback[1:]][int(value_from_callback)]
-            existing_alarm = return_tuple_if_alarm_exists(call.from_user.id, palestra)
+            existing_alarm = return_first_tuple_if_alarm_exists(call.from_user.id, palestra)
             if existing_alarm is None:
                 if first_char == "1":
+
+                    def callback(_chat_id, _palestra):
+                        print(datetime.datetime.now())
+                        time_in_minutes = Utils.dhms_to_minutes(
+                            *Utils.convert_timedelta(
+                                _palestra.date_time - datetime.datetime.now())
+                        ).__str__()
+                        text = "Olá, a palestra *" + _palestra.headline + "* começará em *" + time_in_minutes + " minutos*, no " \
+                                                                                                               "auditório *" \
+                               + _palestra.local + "*."
+                        bot.send_message(chat_id=_chat_id,
+                                         text=text,
+                                         parse_mode="MARKDOWN")
+
                     define_alarm(call.from_user.id,
-                                 datetime.datetime.now() + datetime.timedelta(seconds=20),
+                                 datetime.datetime.now() + datetime.timedelta(seconds=10),
                                  palestra,
-                                 lambda: bot.send_message(chat_id=call.message.chat.id,
-                                                          text="Olá, a palestra *" + palestra.headline + "* começará em *" +
-                                                               Utils.dhms_to_minutes(
-                                                                   *Utils.convert_timedelta(
-                                                                       palestra.date_time - datetime.datetime.now())
-                                                               ).__str__() +
-                                                               " minutos*, no auditório *" + palestra.local + "*.",
-                                                          parse_mode="MARKDOWN"))
+                                 chat_id=call.message.chat.id,
+                                 callback=callback)
+                    define_alarm(call.from_user.id,
+                                 datetime.datetime.now() + datetime.timedelta(seconds=70),
+                                 palestra,
+                                 chat_id=call.message.chat.id,
+                                 callback=callback)
                     bot.reply_to(message=call.message,
                                  text="Lembrete definido para o evento.")
                 elif first_char == "0":
@@ -277,7 +329,6 @@ def handle_query(call):
 
 @bot.message_handler(func=lambda m: True)
 def echo_all(message):
-    print(message)
     bot.reply_to(message, 'Desculpe, não entendi, essas são as opções que ofereço atualmente')
     user_menu_state[message.from_user.id] = ""
     send_menu(chat_id=message.chat.id)
@@ -285,5 +336,9 @@ def echo_all(message):
 
 if __name__ == '__main__':
     print_hi('PyCharm')
+
+load_alarms()
+pprint.pprint(alarms)
+Alarms.start()
 
 bot.infinity_polling()
