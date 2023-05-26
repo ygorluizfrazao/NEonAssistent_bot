@@ -148,7 +148,7 @@ def handle_menu_sobre(message):
                      "*Bruno Nunes Pinheiro*\n"
                      "Instagram: https://instagram.com/brunonunespinheiro\n"
                      "LinkedIn: https://www.linkedin.com/in/brunonunespinheiro/\n\n"
-                     "*Ygor Luiz Frazão*"
+                     "*Ygor Luiz Frazão*\n"
                      "LinkedIn: https://www.linkedin.com/in/ygorluizfrazao/\n"
                      "Github: https://github.com/ygorluizfrazao\n"
                      "Portfólio: https://my-portfolio-livid-pi.vercel.app\n\n"
