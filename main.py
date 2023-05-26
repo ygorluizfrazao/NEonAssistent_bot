@@ -22,7 +22,7 @@ MENU_CONTEUDO = "Criação de conteúdo        📦"
 MENU_INFORMACOES = "Informações do evento      ℹ️"
 MENU_INGRESSOS = "Ingressos                  🎫"
 MENU_ENQUETES = "Enquetes                   ☑️"
-MENU_SOBRE = "Sobre                      🙎"
+MENU_SOBRE = "Sobre                      💻"
 
 menu_command_dict = {
     MENU_PALESTRAS: "/palestras",
