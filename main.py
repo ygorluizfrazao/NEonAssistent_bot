@@ -166,12 +166,17 @@ def handle_conteudo_option(message):
 @bot.message_handler(commands=['informacoes'])
 def handle_informacoes(message):
     user_menu_state[message.from_user.id] = MENU_INFORMACOES
-    bot.send_message(message.chat.id,
-                     "Não perca o *NEon 2023* em *São Luís*!\n"
-                     "Dias *01* e *02* de junho no Multicenter Sebrae. 📅",
-                     parse_mode="MARKDOWN")
-    bot.send_message(chat_id=message.chat.id,
-                     text="https://t.me/NEonAssistent_bot/info")
+    # bot.send_message(message.chat.id,
+    #                  "Não perca o *NEon 2023* em *São Luís*!\n"
+    #                  "Dias *01* e *02* de junho no Multicenter Sebrae. 📅",
+    #                  parse_mode="MARKDOWN")
+    # bot.send_message(chat_id=message.chat.id,
+    #                  text="https://t.me/NEonAssistent_bot/info")
+    try:
+        with open('banner_eventos.png', 'rb') as banner_eventos:
+            bot.send_photo(message.chat.id, banner_eventos)
+    except:
+        print("Banner not found")
     bot.send_message(message.chat.id,
                      "Siga o *mapa*. 🗺️",
                      parse_mode="MARKDOWN")
@@ -184,6 +189,7 @@ def send_menu_palestras(message):
     for key in Palestras.palestras.keys():
         markup.add(types.InlineKeyboardButton(text=key,
                                               callback_data="['value', 'p', '" + key + "']"))
+
     bot.send_message(chat_id=message.chat.id,
                      text="Escolha um local para ver a programação",
                      reply_markup=markup,
