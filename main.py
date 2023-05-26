@@ -17,16 +17,18 @@ TOKEN = Constants.API_KEY
 
 bot = telebot.TeleBot(TOKEN, parse_mode=None)
 
-MENU_PALESTRAS = "Palestras                 📅"
+MENU_PALESTRAS = "Palestras                  📅"
 MENU_CONTEUDO = "Criação de conteúdo        📦"
-MENU_INFORMACOES = "Informações do evento   ℹ️"
-MENU_INGRESSOS = "Ingressos                 🎫"
+MENU_INFORMACOES = "Informações do evento      ℹ️"
+MENU_INGRESSOS = "Ingressos                  🎫"
 MENU_ENQUETES = "Enquetes                   ☑️"
+MENU_SOBRE = "Sobre                      🙎"
 
 menu_command_dict = {
     MENU_PALESTRAS: "/palestras",
     MENU_CONTEUDO: "/conteudo",
     MENU_INFORMACOES: "/informacoes",
+    MENU_SOBRE: "/sobre"
 }
 
 menu_apps_dict = {
@@ -69,7 +71,6 @@ def load_alarms():
 
 
 def save_alarms_to_file():
-    pprint.pprint(alarms)
     with open(Constants.ALARMS_FILE, 'wb') as outfile:
         pickle.dump(alarms, outfile, protocol=pickle.HIGHEST_PROTOCOL)
 
@@ -140,6 +141,21 @@ def process_photo_message(message, file_path=None):
         user_menu_state[message.from_user.id] = ""
 
 
+@bot.message_handler(commands=['sobre'])
+def handle_menu_sobre(message):
+    bot.send_message(message.chat.id,
+                     "Este bot foi desenvolvido por:\n\n"
+                     "*Bruno Nunes Pinheiro*\n"
+                     "Instagram: https://instagram.com/brunonunespinheiro\n"
+                     "LinkedIn: https://www.linkedin.com/in/brunonunespinheiro/\n\n"
+                     "*Ygor Luiz Frazão*"
+                     "LinkedIn: https://www.linkedin.com/in/ygorluizfrazao/\n"
+                     "Github: https://github.com/ygorluizfrazao\n"
+                     "Portfólio: https://my-portfolio-livid-pi.vercel.app\n\n"
+                     "Encomende o seu também!",
+                     parse_mode="MARKDOWN")
+
+
 @bot.message_handler(commands=['conteudo'])
 def handle_conteudo_option(message):
     user_menu_state[message.from_user.id] = MENU_CONTEUDO
@@ -162,16 +178,32 @@ def handle_informacoes(message):
     bot.send_location(chat_id=message.chat.id, latitude=-2.5031943, longitude=-44.2675632)
 
 
-@bot.message_handler(commands=['palestras'])
-def handle_palestras(message):
-    user_menu_state[message.from_user.id] = MENU_PALESTRAS
+def send_menu_palestras(message):
+    markup = types.InlineKeyboardMarkup()
+
     for key in Palestras.palestras.keys():
-        for idx, palestra in enumerate(Palestras.palestras[key]):
+        markup.add(types.InlineKeyboardButton(text=key,
+                                              callback_data="['value', 'p', '" + key + "']"))
+    bot.send_message(chat_id=message.chat.id,
+                     text="Escolha um local para ver a programação",
+                     reply_markup=markup,
+                     parse_mode="MARKDOWN")
+
+
+@bot.message_handler(commands=['palestras'])
+def handle_palestras(message, detail_key=None):
+    user_menu_state[message.from_user.id] = MENU_PALESTRAS
+    if detail_key is not None:
+        bot.send_message(chat_id=message.chat.id,
+                         text="\n" + detail_key + "\n",
+                         parse_mode="MARKDOWN")
+        for idx, palestra in enumerate(Palestras.palestras[detail_key]):
             existing_alarm = return_first_tuple_if_alarm_exists(message.from_user.id, palestra)
             if existing_alarm is None:
                 markup = types.InlineKeyboardMarkup()
                 markup.add(types.InlineKeyboardButton("Definir Lembrete ⏰",
-                                                      callback_data="['value', '" + str(idx) + "', '1" + key + "']"))
+                                                      callback_data="['value', '" + str(
+                                                          idx) + "', '1" + detail_key + "']"))
                 bot.send_message(chat_id=message.chat.id,
                                  text=palestra,
                                  reply_markup=markup,
@@ -179,11 +211,14 @@ def handle_palestras(message):
             else:
                 markup = types.InlineKeyboardMarkup()
                 markup.add(types.InlineKeyboardButton("Cancelar Lembrete 🔕",
-                                                      callback_data="['value', '" + str(idx) + "', '0" + key + "']"))
+                                                      callback_data="['value', '" + str(
+                                                          idx) + "', '0" + detail_key + "']"))
                 bot.send_message(chat_id=message.chat.id,
                                  text=palestra,
                                  reply_markup=markup,
                                  parse_mode="MARKDOWN")
+    else:
+        send_menu_palestras(message)
 
 
 @bot.message_handler(content_types=['photo'])
@@ -203,7 +238,7 @@ def photo(message):
 
 def define_alarm(user_id, alarmtime, palestra, chat_id, callback, save_to_file=True):
     def new_callback():
-        callback(chat_id,palestra)
+        callback(chat_id, palestra)
         remove_alarm(user_id, palestra, remover_from_scheduler=False)
 
     tag = Alarms.run_at(alarmtime, new_callback)
@@ -258,6 +293,10 @@ def handle_query(call):
 
             return
 
+        if key_from_callback in Palestras.palestras:
+            call.message.from_user.id = call.from_user.id
+            handle_palestras(call.message, key_from_callback)
+
         if key_from_callback[1:] in Palestras.palestras:
             first_char = key_from_callback[0:1]
             palestra = Palestras.palestras[key_from_callback[1:]][int(value_from_callback)]
@@ -266,25 +305,24 @@ def handle_query(call):
                 if first_char == "1":
 
                     def callback(_chat_id, _palestra):
-                        print(datetime.datetime.now())
                         time_in_minutes = Utils.dhms_to_minutes(
                             *Utils.convert_timedelta(
                                 _palestra.date_time - datetime.datetime.now())
                         ).__str__()
                         text = "Olá, a palestra *" + _palestra.headline + "* começará em *" + time_in_minutes + " minutos*, no " \
-                                                                                                               "auditório *" \
+                                                                                                                "auditório *" \
                                + _palestra.local + "*."
                         bot.send_message(chat_id=_chat_id,
                                          text=text,
                                          parse_mode="MARKDOWN")
 
                     define_alarm(call.from_user.id,
-                                 datetime.datetime.now() + datetime.timedelta(seconds=10),
+                                 palestra.date_time - datetime.timedelta(minutes=15),
                                  palestra,
                                  chat_id=call.message.chat.id,
                                  callback=callback)
                     define_alarm(call.from_user.id,
-                                 datetime.datetime.now() + datetime.timedelta(seconds=70),
+                                 palestra.date_time - datetime.timedelta(minutes=2),
                                  palestra,
                                  chat_id=call.message.chat.id,
                                  callback=callback)
@@ -325,6 +363,9 @@ def handle_query(call):
                 case "/palestras":
                     call.message.from_user.id = call.from_user.id
                     handle_palestras(call.message)
+                case "/sobre":
+                    call.message.from_user.id = call.from_user.id
+                    handle_menu_sobre(call.message)
 
 
 @bot.message_handler(func=lambda m: True)
