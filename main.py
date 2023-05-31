@@ -39,6 +39,7 @@ menu_apps_dict = {
 user_menu_state = {}
 waiting_photo_response = {}
 alarms = {}
+users = {}
 
 
 def load_alarms():
@@ -102,6 +103,9 @@ def menu(message):
 
 @bot.message_handler(commands=['start', 'iniciar', 'help'])
 def send_welcome(message):
+    users[message.chat.id] = message.from_user.username
+    print("Total users: " + str(len(users)))
+    print(users)
     bot.send_message(message.chat.id,
                      "Olá " + message.from_user.first_name + ", estou aqui para te ajudar com sua imersão no NEon "
                                                              "2023. Vamos lá?")
@@ -359,19 +363,19 @@ def handle_query(call):
             return
 
         if key_from_callback in menu_command_dict:
-            match menu_command_dict[key_from_callback]:
-                case "/conteudo":
-                    call.message.from_user.id = call.from_user.id
-                    handle_conteudo_option(call.message)
-                case "/informacoes":
-                    call.message.from_user.id = call.from_user.id
-                    handle_informacoes(call.message)
-                case "/palestras":
-                    call.message.from_user.id = call.from_user.id
-                    handle_palestras(call.message)
-                case "/sobre":
-                    call.message.from_user.id = call.from_user.id
-                    handle_menu_sobre(call.message)
+
+            if menu_command_dict[key_from_callback] == "/conteudo":
+                call.message.from_user.id = call.from_user.id
+                handle_conteudo_option(call.message)
+            elif menu_command_dict[key_from_callback] == "/informacoes":
+                call.message.from_user.id = call.from_user.id
+                handle_informacoes(call.message)
+            elif menu_command_dict[key_from_callback] == "/palestras":
+                call.message.from_user.id = call.from_user.id
+                handle_palestras(call.message)
+            elif menu_command_dict[key_from_callback] == "/sobre":
+                call.message.from_user.id = call.from_user.id
+                handle_menu_sobre(call.message)
 
 
 @bot.message_handler(func=lambda m: True)
